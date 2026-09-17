@@ -1,25 +1,49 @@
 {
   "expo": {
-    "name": "notas",
-    "slug": "notas",
+    "name": "Caderno",
+    "slug": "caderno",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true
+    "backgroundColor": "#f5ead8",
+    "splash": {
+      "backgroundColor": "#f5ead8",
+      "resizeMode": "contain"
     },
     "android": {
+      "package": "br.com.caderno.notas",
+      "softwareKeyboardLayoutMode": "resize",
+      "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#f5ead8",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
+    "ios": {
+      "supportsTablet": false
+    },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-sharing",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O Caderno usa suas fotos para anexá-las às notas."
+        }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ]
+    ]
   }
 }
