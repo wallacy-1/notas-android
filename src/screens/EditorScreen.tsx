@@ -17,6 +17,7 @@ import { MenuSheet } from '../components/MenuSheet';
 import { IconCircle, Tag } from '../components/ui';
 import { formatRelative, formatBytes } from '../lib/date';
 import { importAttachment } from '../lib/files';
+import { useKeyboardHeight } from '../lib/useKeyboardHeight';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Editor'>;
 type Sel = { start: number; end: number };
@@ -57,9 +58,12 @@ function AttachmentRow({ att, onOpen, onRemove }: { att: Attachment; onOpen: () 
 export function EditorScreen({ navigation, route }: Props) {
   const { noteId } = route.params;
   const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardHeight();
   const { getNote, updateNote, deleteNote, toggleFavorite, addAttachment, removeAttachment } = useNotes();
   const clip = useClipboard();
   const note = getNote(noteId);
+  // nota recém-criada: foco começa no título
+  const [isNew] = useState(() => !note?.title && !note?.body);
 
   const [title, setTitle] = useState(note?.title ?? '');
   const [body, setBody] = useState(note?.body ?? '');
@@ -223,7 +227,7 @@ export function EditorScreen({ navigation, route }: Props) {
   const files = note.attachments.filter((a) => a.kind !== 'image');
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: keyboard ? keyboard + insets.bottom : 0 }]}>
       <View style={styles.header}>
         <IconCircle icon="chevron-left" size={36} iconSize={22} color={colors.accent700} onPress={() => navigation.goBack()} accessibilityLabel="Voltar" />
         <Text style={styles.saved}>{savedLabel}</Text>
@@ -238,6 +242,7 @@ export function EditorScreen({ navigation, route }: Props) {
           placeholder="Título"
           placeholderTextColor={colors.neutral500}
           style={styles.title}
+          autoFocus={isNew}
           multiline
           returnKeyType="next"
           blurOnSubmit
@@ -278,7 +283,6 @@ export function EditorScreen({ navigation, route }: Props) {
             placeholderTextColor={colors.neutral500}
             multiline
             textAlignVertical="top"
-            autoFocus={!body}
             style={styles.body}
             scrollEnabled={false}
           />
@@ -306,7 +310,7 @@ export function EditorScreen({ navigation, route }: Props) {
         ) : null}
       </ScrollView>
 
-      <View style={[styles.toolbarWrap, { paddingBottom: Math.max(insets.bottom, 10) + 10 }]}>
+      <View style={[styles.toolbarWrap, { paddingBottom: keyboard ? 10 : Math.max(insets.bottom, 10) + 10 }]}>
         <View style={styles.toolbar}>
           <Pressable hitSlop={8} onPress={() => apply((t, s) => wrapSelection(t, s, '**', '**', 'negrito'))}>
             <Text style={[styles.tool, { fontFamily: fonts.bodyBold }]}>B</Text>

@@ -46,6 +46,7 @@ export function BackupScreen({ navigation }: Props) {
     try {
       await fn();
     } catch (e) {
+      console.warn('export', key, e);
       Alert.alert('Não deu', 'A exportação falhou. Tente de novo.');
     } finally {
       setBusy(null);

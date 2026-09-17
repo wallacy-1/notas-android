@@ -27,6 +27,13 @@ async function shareFile(file: File, mimeType: string, dialogTitle: string) {
   }
 }
 
+function base64ToBytes(b64: string): Uint8Array {
+  const bin = globalThis.atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 function payload(notes: Note[], settings: Settings): BackupPayload {
   return { app: 'caderno', version: 1, exportedAt: Date.now(), notes, settings };
 }
@@ -161,8 +168,13 @@ export async function exportPdf(notes: Note[]) {
   <div class="toc"><h1>Caderno</h1><p>${notes.length} notas · ${new Date().toLocaleDateString('pt-BR')}</p><ol>${toc}</ol></div>
   ${notes.map(noteHtml).join('')}
   </body></html>`;
-  const { uri } = await Print.printToFileAsync({ html });
-  await shareFile(new File(uri), 'application/pdf', 'PDF do caderno');
+  // expo-print grava num diretório que o app nem sempre pode ler (Expo Go);
+  // pede o conteúdo em base64 e grava no cache do próprio app.
+  const { base64 } = await Print.printToFileAsync({ html, base64: true });
+  const file = new File(Paths.cache, `caderno-${stamp()}.pdf`);
+  if (file.exists) file.delete();
+  file.write(base64ToBytes(base64 ?? ''));
+  await shareFile(file, 'application/pdf', 'PDF do caderno');
 }
 
 /** Abre o seletor e devolve o payload lido, ou null se cancelado/inválido. */
