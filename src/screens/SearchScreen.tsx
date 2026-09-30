@@ -73,7 +73,7 @@ export function SearchScreen({ navigation }: Props) {
         </Pressable>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} style={{ flexGrow: 0 }} keyboardShouldPersistTaps="handled">
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} style={{ flexGrow: 0, flexShrink: 0 }} keyboardShouldPersistTaps="handled">
         {tag ? (
           <Tag label={`${tag} ✕`} size="md" variant="solid2" onPress={() => setTag(null)} />
         ) : (

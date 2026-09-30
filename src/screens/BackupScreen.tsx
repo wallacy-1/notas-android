@@ -15,11 +15,11 @@ import { MenuSheet } from '../components/MenuSheet';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Backup'>;
 
-function ExportRow({ badge, title, hint, onPress, last }: { badge: string; title: string; hint: string; onPress: () => void; last?: boolean }) {
+function ExportRow({ badge, icon, title, hint, onPress, last }: { badge?: string; icon?: React.ComponentProps<typeof Feather>['name']; title: string; hint: string; onPress: () => void; last?: boolean }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, !last && styles.rowBorder, pressed && { opacity: 0.7 }]}>
       <View style={styles.badge}>
-        <Text style={styles.badgeText}>{badge}</Text>
+        {icon ? <Feather name={icon} size={17} color={colors.accent800} /> : <Text style={styles.badgeText}>{badge}</Text>}
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={styles.rowTitle}>{title}</Text>
@@ -150,8 +150,8 @@ export function BackupScreen({ navigation }: Props) {
         <View>
           <Kicker>Restaurar</Kicker>
           <View style={styles.group}>
-            <ExportRow badge="↻" title="De um backup local" hint="últimos backups automáticos deste aparelho" onPress={restoreLocal} />
-            <ExportRow badge="⤒" title="De um arquivo JSON" hint="exportado de outro aparelho" onPress={restoreFromFile} last />
+            <ExportRow icon="rotate-ccw" title="De um backup local" hint="últimos backups automáticos deste aparelho" onPress={restoreLocal} />
+            <ExportRow icon="upload" title="De um arquivo JSON" hint="exportado de outro aparelho" onPress={restoreFromFile} last />
           </View>
         </View>
       </ScrollView>

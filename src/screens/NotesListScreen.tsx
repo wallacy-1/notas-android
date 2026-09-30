@@ -103,7 +103,7 @@ export function NotesListScreen({ navigation }: Props) {
           </Pressable>
 
           {allTags.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} style={{ flexGrow: 0 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} style={{ flexGrow: 0, flexShrink: 0 }}>
               <Tag label="Todas" size="md" variant={activeTag ? 'neutral' : 'solid'} onPress={() => setSelectedTag(null)} />
               {allTags.map((t) => (
                 <Tag key={t} label={t} size="md" variant={activeTag === t ? 'solid2' : 'accent2'} onPress={() => setSelectedTag(activeTag === t ? null : t)} />
