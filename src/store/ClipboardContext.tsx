@@ -26,6 +26,12 @@ interface ClipboardApi {
 
 const Ctx = createContext<ClipboardApi | null>(null);
 
+/** Fixados ficam; o resto expira em 24 h ou pelo limite de itens. */
+function prune(list: ClipItem[]): ClipItem[] {
+  const cutoff = Date.now() - DAY;
+  return list.filter((i) => i.pinned || i.createdAt > cutoff).slice(0, MAX_ITEMS);
+}
+
 export function ClipboardProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<ClipItem[]>([]);
   const [visible, setVisible] = useState(false);
@@ -38,10 +44,11 @@ export function ClipboardProvider({ children }: { children: React.ReactNode }) {
       .then((raw) => {
         if (raw) {
           const list: ClipItem[] = JSON.parse(raw);
-          setItems(list);
+          setItems(prune(list));
           if (list[0]) lastSeen.current = list[0].text;
         }
       })
+      .catch(() => {})
       .finally(() => {
         loaded.current = true;
         refresh();
@@ -62,10 +69,7 @@ export function ClipboardProvider({ children }: { children: React.ReactNode }) {
       const dup = list.find((i) => i.text === t);
       const rest = list.filter((i) => i.text !== t);
       const item: ClipItem = dup ? { ...dup, createdAt: Date.now() } : { id: uid(), text: t, kind: detectClipKind(t), pinned: false, createdAt: Date.now() };
-      const cutoff = Date.now() - DAY;
-      // fixados ficam; o resto expira em 24 h ou pelo limite de itens
-      const kept = rest.filter((i) => i.pinned || i.createdAt > cutoff);
-      return [item, ...kept].slice(0, MAX_ITEMS);
+      return prune([item, ...rest]);
     });
   }, []);
 
@@ -93,6 +97,7 @@ export function ClipboardProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const open = useCallback(() => {
+    setItems(prune);
     refresh();
     setVisible(true);
   }, [refresh]);
@@ -104,10 +109,14 @@ export function ClipboardProvider({ children }: { children: React.ReactNode }) {
 
   const remove = useCallback((id: string) => setItems((list) => list.filter((i) => i.id !== id)), []);
 
-  const copy = useCallback(async (text: string) => {
-    lastSeen.current = text;
-    await Clipboard.setStringAsync(text);
-  }, []);
+  // O que o próprio app copia também entra no histórico.
+  const copy = useCallback(
+    async (text: string) => {
+      push(text);
+      await Clipboard.setStringAsync(text);
+    },
+    [push],
+  );
 
   const value = useMemo<ClipboardApi>(
     () => ({ items, visible, open, close, activeNoteId, setActiveNoteId, refresh, togglePin, remove, copy }),
