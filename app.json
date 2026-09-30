@@ -4,30 +4,26 @@
     "slug": "caderno",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icone/ios-1024.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#f5ead8",
-    "splash": {
-      "backgroundColor": "#f5ead8",
-      "resizeMode": "contain"
-    },
     "android": {
       "package": "br.com.caderno.notas",
       "softwareKeyboardLayoutMode": "resize",
-      "edgeToEdgeEnabled": true,
+      "icon": "./assets/icone/ic_launcher-512.png",
       "adaptiveIcon": {
-        "backgroundColor": "#f5ead8",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#8fa073",
+        "foregroundImage": "./assets/icone/ic_launcher_foreground.png",
+        "monochromeImage": "./assets/icone/ic_launcher_monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "icon": "./assets/icone/ios-1024.png"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icone/ic_launcher-192.png"
     },
     "plugins": [
       "expo-sharing",
@@ -42,6 +38,15 @@
         "expo-document-picker",
         {
           "iCloudContainerEnvironment": "Production"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icone/splash_icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#8fa073"
         }
       ]
     ]
