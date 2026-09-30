@@ -3,7 +3,7 @@ export type AttachmentKind = 'image' | 'pdf' | 'file';
 export interface Attachment {
   id: string;
   name: string;
-  uri: string; // arquivo copiado para o diretório do app
+  uri: string;
   size: number; // bytes
   mimeType: string;
   kind: AttachmentKind;
@@ -13,7 +13,7 @@ export interface Attachment {
 export interface Note {
   id: string;
   title: string;
-  body: string; // markdown
+  body: string;
   tags: string[];
   favorite: boolean;
   attachments: Attachment[];

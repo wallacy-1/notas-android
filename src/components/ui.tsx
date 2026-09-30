@@ -5,7 +5,6 @@ import { colors, fonts, radius, shadow } from '../theme';
 
 export type IconName = React.ComponentProps<typeof Feather>['name'];
 
-/* ── Tag / chip ─────────────────────────────────────────────── */
 type TagVariant = 'accent' | 'accent2' | 'neutral' | 'outline' | 'solid' | 'solid2';
 
 const tagPalette: Record<TagVariant, { bg: string; fg: string; border?: string }> = {
@@ -47,7 +46,6 @@ export function Tag({
   );
 }
 
-/* ── Botão circular com ícone ───────────────────────────────── */
 export function IconCircle({
   icon,
   size = 48,
@@ -73,7 +71,6 @@ export function IconCircle({
   );
 }
 
-/* ── Botões de texto (pill) ─────────────────────────────────── */
 export function PillButton({
   label,
   variant = 'primary',
@@ -108,7 +105,6 @@ export function PillButton({
   );
 }
 
-/* ── Título de tela ─────────────────────────────────────────── */
 export function ScreenTitle({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
   return <Text style={[styles.title, style]}>{children}</Text>;
 }
@@ -117,7 +113,6 @@ export function Kicker({ children }: { children: React.ReactNode }) {
   return <Text style={styles.kicker}>{children}</Text>;
 }
 
-/* ── Card base ──────────────────────────────────────────────── */
 export function Card({ children, style, bg = colors.surface, onPress, onLongPress }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; bg?: string; onPress?: () => void; onLongPress?: () => void }) {
   if (!onPress && !onLongPress) return <View style={[styles.card, { backgroundColor: bg }, style]}>{children}</View>;
   return (

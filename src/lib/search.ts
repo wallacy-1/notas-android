@@ -1,6 +1,5 @@
 const COMBINING = /[̀-ͯ]/g;
 
-/** Minúsculas e sem acento, para comparar. */
 export function norm(s: string): string {
   return s.normalize('NFD').replace(COMBINING, '').toLowerCase();
 }
@@ -48,7 +47,6 @@ function isTrailing(text: string, i: number): boolean {
   return (c >= 0x0300 && c <= 0x036f) || (c >= 0xdc00 && c <= 0xdfff);
 }
 
-/** Divide o texto em partes, marcando as que casam com a busca. */
 export function highlight(text: string, q: string): { t: string; hit: boolean }[] {
   const ranges = matchRanges(text, q);
   if (ranges.length === 0) return [{ t: text, hit: false }];
@@ -63,7 +61,6 @@ export function highlight(text: string, q: string): { t: string; hit: boolean }[
   return parts;
 }
 
-/** Recorte do texto em volta do primeiro acerto. */
 export function snippet(plain: string, q: string): string {
   const first = q ? matchRanges(plain, q)[0] : undefined;
   if (!first) return plain.slice(0, 110);

@@ -109,7 +109,6 @@ export function ClipboardProvider({ children }: { children: React.ReactNode }) {
 
   const remove = useCallback((id: string) => setItems((list) => list.filter((i) => i.id !== id)), []);
 
-  // O que o próprio app copia também entra no histórico.
   const copy = useCallback(
     async (text: string) => {
       push(text);

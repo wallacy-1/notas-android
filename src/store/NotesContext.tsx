@@ -62,7 +62,6 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  // Autosave: persiste com debounce curto após qualquer mudança.
   useEffect(() => {
     if (!ready) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -89,7 +88,6 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     }
   }, [withContent, settings]);
 
-  // Backup automático diário (local), só quando há nota com conteúdo.
   useEffect(() => {
     if (!ready || !settings.autoBackup || withContent.length === 0) return;
     const due = !settings.lastBackupAt || Date.now() - settings.lastBackupAt > DAY;

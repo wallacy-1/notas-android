@@ -62,7 +62,6 @@ export function EditorScreen({ navigation, route }: Props) {
   const { getNote, updateNote, deleteNote, toggleFavorite, addAttachment, removeAttachment } = useNotes();
   const clip = useClipboard();
   const note = getNote(noteId);
-  // nota recém-criada: foco começa no título
   const [isNew] = useState(() => !note?.title && !note?.body);
 
   const [title, setTitle] = useState(note?.title ?? '');
@@ -98,7 +97,6 @@ export function EditorScreen({ navigation, route }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.body]);
 
-  // Autosave com debounce curto.
   useEffect(() => {
     if (!note) return;
     if (note.title === title && note.body === body) return;

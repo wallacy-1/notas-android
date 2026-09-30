@@ -16,7 +16,6 @@ export interface BackupPayload {
   settings: Partial<Settings>;
 }
 
-/** Arquivo escolhido não é um backup do Caderno. */
 export class InvalidBackupError extends Error {
   constructor() {
     super('Esse arquivo não parece um backup do Caderno.');
@@ -53,7 +52,6 @@ export function writeLocalBackup(notes: Note[], settings: Settings): File {
   const file = new File(dir, `caderno-${stamp()}.json`);
   if (file.exists) file.delete();
   file.write(JSON.stringify(payload(notes, settings)));
-  // mantém só os 7 mais recentes
   listLocalBackups()
     .slice(7)
     .forEach((f) => f.delete());

@@ -18,7 +18,7 @@ export function NoteCard({
   onPress: () => void;
   onToggleFavorite: () => void;
   onLongPress?: () => void;
-  tinted?: boolean; // fundo terracota (tela Favoritas)
+  tinted?: boolean;
 }) {
   const preview = stripMarkdown(note.body);
   return (

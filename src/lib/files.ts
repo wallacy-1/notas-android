@@ -28,7 +28,6 @@ function safeName(name: string) {
   return name.replace(/[^\w.\-]+/g, '_');
 }
 
-/** Copia um arquivo escolhido para dentro do app e devolve o anexo. */
 export async function importAttachment(
   sourceUri: string,
   name: string,
@@ -51,7 +50,6 @@ export async function importAttachment(
   };
 }
 
-/** Grava um anexo vindo de backup (base64) dentro do app e devolve o anexo apontando para ele. */
 export function writeAttachmentData(att: Attachment, base64: string): Attachment {
   const dir = ensure(attachmentsDir());
   const target = new File(dir, `${att.id}-${safeName(att.name)}`);
