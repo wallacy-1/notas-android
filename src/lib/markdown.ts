@@ -16,17 +16,27 @@ export type Block =
   | { type: 'blank' };
 
 const INLINE_RE = /(\*\*([^*]+)\*\*|__([^_]+)__|`([^`]+)`|\*([^*]+)\*|_([^_]+)_)/g;
+const WORD_CHAR = /[A-Za-z0-9À-ɏ]/;
 
 export function parseInline(src: string): Inline[] {
   const out: Inline[] = [];
   let last = 0;
-  for (const m of src.matchAll(INLINE_RE)) {
-    const idx = m.index ?? 0;
+  const re = new RegExp(INLINE_RE);
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src))) {
+    const idx = m.index;
+    const end = idx + m[0].length;
+    // "_" colado em palavra (minha_variavel_nova) é texto, não ênfase;
+    // recomeça logo depois dele para achar ênfases reais adiante.
+    if (m[0].startsWith('_') && (WORD_CHAR.test(src[idx - 1] ?? '') || WORD_CHAR.test(src[end] ?? ''))) {
+      re.lastIndex = idx + 1;
+      continue;
+    }
     if (idx > last) out.push({ type: 'text', text: src.slice(last, idx) });
     if (m[2] !== undefined || m[3] !== undefined) out.push({ type: 'bold', text: m[2] ?? m[3] });
     else if (m[4] !== undefined) out.push({ type: 'code', text: m[4] });
     else out.push({ type: 'italic', text: m[5] ?? m[6] });
-    last = idx + m[0].length;
+    last = end;
   }
   if (last < src.length) out.push({ type: 'text', text: src.slice(last) });
   return out;
@@ -83,12 +93,14 @@ export function parseMarkdown(src: string): Block[] {
 
 /** Texto sem marcação, para prévia e busca. */
 export function stripMarkdown(src: string): string {
-  return src
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/^#{1,3}\s+/gm, '')
-    .replace(/^\s*[-*•]\s+/gm, '')
-    .replace(/^>\s?/gm, '')
-    .replace(/(\*\*|__|`|\*|_)/g, '')
+  // Usa o mesmo parser da visualização: só some o que de fato é marcação.
+  return parseMarkdown(src)
+    .map((b) => {
+      if (b.type === 'blank') return '';
+      if (b.type === 'codeblock') return b.text;
+      return b.inlines.map((i) => i.text).join('');
+    })
+    .join(' ')
     .replace(/\s+/g, ' ')
     .trim();
 }

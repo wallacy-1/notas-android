@@ -8,44 +8,10 @@ import type { Note } from '../types';
 import { colors, fonts, radius } from '../theme';
 import { useNotes } from '../store/NotesContext';
 import { stripMarkdown } from '../lib/markdown';
+import { highlight, norm, snippet } from '../lib/search';
 import { Kicker, Tag } from '../components/ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
-
-function norm(s: string) {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-}
-
-/** Divide o texto em partes, marcando as que casam com a busca. */
-function highlight(text: string, q: string): { t: string; hit: boolean }[] {
-  if (!q) return [{ t: text, hit: false }];
-  const n = norm(text);
-  const nq = norm(q);
-  const parts: { t: string; hit: boolean }[] = [];
-  let i = 0;
-  // norm() preserva o comprimento (só remove diacríticos combinantes), então os índices batem
-  while (i < text.length) {
-    const j = n.indexOf(nq, i);
-    if (j < 0) {
-      parts.push({ t: text.slice(i), hit: false });
-      break;
-    }
-    if (j > i) parts.push({ t: text.slice(i, j), hit: false });
-    parts.push({ t: text.slice(j, j + q.length), hit: true });
-    i = j + q.length;
-  }
-  return parts;
-}
-
-function snippet(body: string, q: string): string {
-  const plain = stripMarkdown(body);
-  if (!q) return plain.slice(0, 110);
-  const idx = norm(plain).indexOf(norm(q));
-  if (idx < 0) return plain.slice(0, 110);
-  const start = Math.max(0, idx - 40);
-  const end = Math.min(plain.length, idx + q.length + 60);
-  return (start > 0 ? '…' : '') + plain.slice(start, end) + (end < plain.length ? '…' : '');
-}
 
 function Highlighted({ text, q, style }: { text: string; q: string; style: object }) {
   return (
@@ -73,7 +39,8 @@ export function SearchScreen({ navigation }: Props) {
       .filter((n) => !tag || n.tags.includes(tag))
       .filter((n) => !onlyFav || n.favorite)
       .filter((n) => !withAtt || n.attachments.length > 0)
-      .filter((n) => !nq || norm(n.title).includes(nq) || norm(n.body).includes(nq) || n.tags.some((t) => norm(t).includes(nq)))
+      // corpo sem marcação ("arroz integral" acha "Arroz **integral**") e cru (acha a própria marcação)
+      .filter((n) => !nq || norm(n.title).includes(nq) || norm(stripMarkdown(n.body)).includes(nq) || norm(n.body).includes(nq) || n.tags.some((t) => norm(t).includes(nq)))
       .sort((a, b) => b.updatedAt - a.updatedAt);
   }, [notes, q, tag, onlyFav, withAtt]);
 
@@ -126,7 +93,7 @@ export function SearchScreen({ navigation }: Props) {
         renderItem={({ item }: { item: Note }) => (
           <Pressable onPress={() => navigation.navigate('Editor', { noteId: item.id })} style={({ pressed }) => [styles.result, pressed && { opacity: 0.8 }]}>
             <Highlighted text={item.title || 'Sem título'} q={q.trim()} style={styles.resultTitle} />
-            <Highlighted text={snippet(item.body, q.trim())} q={q.trim()} style={styles.resultBody} />
+            <Highlighted text={snippet(stripMarkdown(item.body), q.trim())} q={q.trim()} style={styles.resultBody} />
           </Pressable>
         )}
       />
