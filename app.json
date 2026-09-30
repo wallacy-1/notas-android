@@ -9,6 +9,7 @@
     "backgroundColor": "#f5ead8",
     "android": {
       "package": "br.com.caderno.notas",
+      "versionCode": 1,
       "softwareKeyboardLayoutMode": "resize",
       "icon": "./assets/icone/ic_launcher-512.png",
       "adaptiveIcon": {
