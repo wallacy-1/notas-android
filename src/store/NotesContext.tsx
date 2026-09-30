@@ -2,8 +2,14 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Attachment, Note, Settings } from '../types';
 import { uid } from '../lib/id';
-import { deleteAttachmentFile } from '../lib/files';
+import { cleanupOrphans, deleteAttachmentFile } from '../lib/files';
 import { writeLocalBackup } from '../lib/backup';
+import { hasContent, sanitizeNotes } from '../lib/notes';
+
+/** Apaga do disco anexos que nenhuma nota referencia mais. */
+function cleanupFor(list: Note[]) {
+  cleanupOrphans(new Set(list.flatMap((n) => n.attachments.map((a) => a.uri))));
+}
 
 const NOTES_KEY = 'caderno.notes.v1';
 const SETTINGS_KEY = 'caderno.settings.v1';
@@ -26,7 +32,8 @@ interface NotesApi {
   appendToNote: (id: string, text: string) => void;
   replaceAll: (notes: Note[], settings?: Partial<Settings>) => void;
   updateSettings: (patch: Partial<Settings>) => void;
-  backupNow: () => void;
+  /** true se o backup foi gravado */
+  backupNow: () => boolean;
 }
 
 const Ctx = createContext<NotesApi | null>(null);
@@ -41,8 +48,14 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const [n, s] = await Promise.all([AsyncStorage.getItem(NOTES_KEY), AsyncStorage.getItem(SETTINGS_KEY)]);
-        if (n) setNotes(JSON.parse(n));
+        if (n) {
+          const list = sanitizeNotes(JSON.parse(n));
+          setNotes(list);
+          cleanupFor(list);
+        }
         if (s) setSettings({ ...defaultSettings, ...JSON.parse(s) });
+      } catch {
+        // armazenamento corrompido: abre vazio em vez de travar o app
       } finally {
         setReady(true);
       }
@@ -63,19 +76,25 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)).catch(() => {});
   }, [settings, ready]);
 
+  // Rascunhos vazios (nota recém-criada) ficam fora do backup.
+  const withContent = useMemo(() => notes.filter(hasContent), [notes]);
+
   const backupNow = useCallback(() => {
     try {
-      writeLocalBackup(notes, settings);
+      writeLocalBackup(withContent, settings);
       setSettings((s) => ({ ...s, lastBackupAt: Date.now() }));
-    } catch {}
-  }, [notes, settings]);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [withContent, settings]);
 
-  // Backup automático diário (local), só quando há notas.
+  // Backup automático diário (local), só quando há nota com conteúdo.
   useEffect(() => {
-    if (!ready || !settings.autoBackup || notes.length === 0) return;
+    if (!ready || !settings.autoBackup || withContent.length === 0) return;
     const due = !settings.lastBackupAt || Date.now() - settings.lastBackupAt > DAY;
     if (due) backupNow();
-  }, [ready, settings.autoBackup, settings.lastBackupAt, notes.length, backupNow]);
+  }, [ready, settings.autoBackup, settings.lastBackupAt, withContent.length, backupNow]);
 
   const getNote = useCallback((id: string) => notes.find((n) => n.id === id), [notes]);
 
@@ -138,6 +157,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
 
   const replaceAll = useCallback((next: Note[], s?: Partial<Settings>) => {
     setNotes(next);
+    cleanupFor(next);
     if (s) setSettings((cur) => ({ ...cur, ...s }));
   }, []);
 

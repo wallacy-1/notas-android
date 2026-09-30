@@ -3,16 +3,24 @@ import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as DocumentPicker from 'expo-document-picker';
 import JSZip from 'jszip';
-import type { Note, Settings } from '../types';
-import { backupsDir } from './files';
+import type { Attachment, Note, Settings } from '../types';
+import { backupsDir, fileExists, PICKER_COPY_TO_CACHE, writeAttachmentData } from './files';
 import { parseMarkdown, type Inline } from './markdown';
+import { sanitizeNotes } from './notes';
 
 export interface BackupPayload {
   app: 'caderno';
   version: 1;
   exportedAt: number;
   notes: Note[];
-  settings: Settings;
+  settings: Partial<Settings>;
+}
+
+/** Arquivo escolhido não é um backup do Caderno. */
+export class InvalidBackupError extends Error {
+  constructor() {
+    super('Esse arquivo não parece um backup do Caderno.');
+  }
 }
 
 function stamp() {
@@ -43,6 +51,7 @@ export function writeLocalBackup(notes: Note[], settings: Settings): File {
   const dir = backupsDir();
   if (!dir.exists) dir.create({ intermediates: true });
   const file = new File(dir, `caderno-${stamp()}.json`);
+  if (file.exists) file.delete();
   file.write(JSON.stringify(payload(notes, settings)));
   // mantém só os 7 mais recentes
   listLocalBackups()
@@ -60,9 +69,26 @@ export function listLocalBackups(): File[] {
     .sort((a, b) => (b.modificationTime ?? 0) - (a.modificationTime ?? 0));
 }
 
+/** JSON para levar a outro aparelho: anexos vão junto, em base64. */
 export async function exportJson(notes: Note[], settings: Settings) {
+  const withData = await Promise.all(
+    notes.map(async (n) => ({
+      ...n,
+      attachments: await Promise.all(
+        n.attachments.map(async (a) => {
+          try {
+            const f = new File(a.uri);
+            return f.exists ? { ...a, data: await f.base64() } : a;
+          } catch {
+            return a;
+          }
+        }),
+      ),
+    })),
+  );
   const file = new File(Paths.cache, `caderno-${stamp()}.json`);
-  file.write(JSON.stringify(payload(notes, settings), null, 2));
+  if (file.exists) file.delete();
+  file.write(JSON.stringify(payload(withData, settings), null, 2));
   await shareFile(file, 'application/json', 'Exportar JSON');
 }
 
@@ -104,6 +130,7 @@ export async function exportMarkdownZip(notes: Note[]) {
   }
   const bytes = await zip.generateAsync({ type: 'uint8array' });
   const file = new File(Paths.cache, `caderno-${stamp()}.zip`);
+  if (file.exists) file.delete();
   file.write(bytes);
   await shareFile(file, 'application/zip', 'Exportar Markdown');
 }
@@ -177,20 +204,40 @@ export async function exportPdf(notes: Note[]) {
   await shareFile(file, 'application/pdf', 'PDF do caderno');
 }
 
-/** Abre o seletor e devolve o payload lido, ou null se cancelado/inválido. */
+/** Abre o seletor e devolve o payload lido; null se cancelado, InvalidBackupError se não for backup. */
 export async function pickBackupFile(): Promise<BackupPayload | null> {
-  const res = await DocumentPicker.getDocumentAsync({ type: ['application/json', '*/*'], copyToCacheDirectory: true });
+  const res = await DocumentPicker.getDocumentAsync({ type: ['application/json', '*/*'], copyToCacheDirectory: PICKER_COPY_TO_CACHE });
   if (res.canceled || !res.assets?.[0]) return null;
   const text = await new File(res.assets[0].uri).text();
-  return parseBackup(text);
+  const data = parseBackup(text);
+  if (!data) throw new InvalidBackupError();
+  return data;
 }
 
 export function parseBackup(text: string): BackupPayload | null {
   try {
     const data = JSON.parse(text);
     if (data?.app !== 'caderno' || !Array.isArray(data.notes)) return null;
-    return data as BackupPayload;
+    const settings: Partial<Settings> = typeof data.settings?.autoBackup === 'boolean' ? { autoBackup: data.settings.autoBackup } : {};
+    return { app: 'caderno', version: 1, exportedAt: Number(data.exportedAt) || 0, notes: sanitizeNotes(data.notes), settings };
   } catch {
     return null;
   }
+}
+
+/**
+ * Prepara anexos das notas restauradas: grava os que vieram em base64 e
+ * descarta os que apontam para arquivo inexistente (ex.: backup de outro aparelho).
+ */
+export function restoreAttachments(notes: Note[]): Note[] {
+  return notes.map((n) => ({
+    ...n,
+    attachments: n.attachments.flatMap((raw): Attachment[] => {
+      const { data, ...att } = raw as Attachment & { data?: string };
+      try {
+        if (data) return [writeAttachmentData(att, data)];
+      } catch {}
+      return fileExists(att.uri) ? [att] : [];
+    }),
+  }));
 }

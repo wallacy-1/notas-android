@@ -31,6 +31,12 @@ export function formatRelative(ts: number, now = Date.now()): string {
   return formatNoteDate(ts, now);
 }
 
+/** "hoje, 09:42" · "ontem às 09:42" · "12 set às 09:42" — data sempre com hora. */
+export function formatStamp(ts: number, now = Date.now()): string {
+  const d = formatNoteDate(ts, now);
+  return d.startsWith('hoje') ? d : `${d} às ${formatTime(ts)}`;
+}
+
 export function formatTime(ts: number): string {
   const d = new Date(ts);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;

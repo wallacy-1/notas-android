@@ -1,9 +1,17 @@
+import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
 import type { Attachment, AttachmentKind } from '../types';
 import { uid } from './id';
 
 export const attachmentsDir = () => new Directory(Paths.document, 'attachments');
 export const backupsDir = () => new Directory(Paths.document, 'backups');
+
+/**
+ * No Android a cópia do DocumentPicker cai num cache que o expo-file-system
+ * recusa ler ("Missing 'READ' permission"); o content:// original é legível.
+ * No iOS a cópia é necessária para o arquivo continuar acessível.
+ */
+export const PICKER_COPY_TO_CACHE = Platform.OS !== 'android';
 
 function ensure(dir: Directory) {
   if (!dir.exists) dir.create({ intermediates: true });
@@ -41,6 +49,23 @@ export async function importAttachment(
     kind: kindFor(mime, name),
     createdAt: Date.now(),
   };
+}
+
+/** Grava um anexo vindo de backup (base64) dentro do app e devolve o anexo apontando para ele. */
+export function writeAttachmentData(att: Attachment, base64: string): Attachment {
+  const dir = ensure(attachmentsDir());
+  const target = new File(dir, `${att.id}-${safeName(att.name)}`);
+  if (target.exists) target.delete();
+  target.write(base64, { encoding: 'base64' });
+  return { ...att, uri: target.uri, size: att.size || target.size || 0 };
+}
+
+export function fileExists(uri: string): boolean {
+  try {
+    return !!uri && new File(uri).exists;
+  } catch {
+    return false;
+  }
 }
 
 export function deleteAttachmentFile(att: Attachment) {

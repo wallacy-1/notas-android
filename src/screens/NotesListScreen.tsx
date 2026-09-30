@@ -11,7 +11,7 @@ import { NoteCard } from '../components/NoteCard';
 import { BottomNav } from '../components/BottomNav';
 import { MenuSheet } from '../components/MenuSheet';
 import { IconCircle, PillButton, ScreenTitle, Tag } from '../components/ui';
-import { pickBackupFile } from '../lib/backup';
+import { InvalidBackupError, pickBackupFile, restoreAttachments } from '../lib/backup';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notes'>;
 type Sort = 'recent' | 'title';
@@ -39,9 +39,12 @@ export function NotesListScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { notes, allTags, ready, createNote, toggleFavorite, deleteNote, replaceAll } = useNotes();
   const clip = useClipboard();
-  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>('recent');
   const [menu, setMenu] = useState(false);
+  // Tag que deixou de existir (removida da última nota) não pode prender o filtro.
+  const activeTag = selectedTag && allTags.includes(selectedTag) ? selectedTag : null;
+  const favCount = notes.filter((n) => n.favorite).length;
 
   const list = useMemo(() => {
     const base = activeTag ? notes.filter((n) => n.tags.includes(activeTag)) : notes;
@@ -64,9 +67,9 @@ export function NotesListScreen({ navigation }: Props) {
     try {
       const data = await pickBackupFile();
       if (!data) return;
-      replaceAll(data.notes, data.settings);
-    } catch {
-      Alert.alert('Não deu', 'Esse arquivo não parece um backup do Caderno.');
+      replaceAll(restoreAttachments(data.notes), data.settings);
+    } catch (e) {
+      Alert.alert('Não deu', e instanceof InvalidBackupError ? e.message : 'Não consegui ler esse arquivo.');
     }
   };
 
@@ -101,9 +104,9 @@ export function NotesListScreen({ navigation }: Props) {
 
           {allTags.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} style={{ flexGrow: 0 }}>
-              <Tag label="Todas" size="md" variant={activeTag ? 'neutral' : 'solid'} onPress={() => setActiveTag(null)} />
+              <Tag label="Todas" size="md" variant={activeTag ? 'neutral' : 'solid'} onPress={() => setSelectedTag(null)} />
               {allTags.map((t) => (
-                <Tag key={t} label={t} size="md" variant={activeTag === t ? 'solid2' : 'accent2'} onPress={() => setActiveTag(activeTag === t ? null : t)} />
+                <Tag key={t} label={t} size="md" variant={activeTag === t ? 'solid2' : 'accent2'} onPress={() => setSelectedTag(activeTag === t ? null : t)} />
               ))}
             </ScrollView>
           ) : null}
@@ -132,7 +135,7 @@ export function NotesListScreen({ navigation }: Props) {
         visible={menu}
         onClose={() => setMenu(false)}
         entries={[
-          { icon: 'star', label: 'Favoritas', hint: `${notes.filter((n) => n.favorite).length} notas fixadas`, onPress: () => navigation.navigate('Favorites') },
+          { icon: 'star', label: 'Favoritas', hint: favCount === 1 ? '1 nota fixada' : `${favCount} notas fixadas`, onPress: () => navigation.navigate('Favorites') },
           { icon: 'search', label: 'Buscar', hint: 'no texto inteiro, com filtros', onPress: () => navigation.navigate('Search') },
           { icon: 'shield', label: 'Backup e exportação', hint: 'Markdown, PDF ou JSON', onPress: () => navigation.navigate('Backup') },
         ]}

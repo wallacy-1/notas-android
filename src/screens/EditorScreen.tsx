@@ -16,7 +16,7 @@ import { MarkdownView } from '../components/MarkdownView';
 import { MenuSheet } from '../components/MenuSheet';
 import { IconCircle, Tag } from '../components/ui';
 import { formatRelative, formatBytes } from '../lib/date';
-import { importAttachment } from '../lib/files';
+import { importAttachment, PICKER_COPY_TO_CACHE } from '../lib/files';
 import { useKeyboardHeight } from '../lib/useKeyboardHeight';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Editor'>;
@@ -90,8 +90,11 @@ export function EditorScreen({ navigation, route }: Props) {
   const lastSent = useRef(note?.body ?? '');
   useEffect(() => {
     if (!note || note.body === lastSent.current) return;
+    const prev = lastSent.current;
     lastSent.current = note.body;
-    setBody(note.body);
+    // Colagem chega como acréscimo ao corpo salvo; se há digitação ainda não
+    // salva (debounce), aplica só o acréscimo para não perdê-la.
+    setBody((cur) => (cur === prev || !note.body.startsWith(prev) ? note.body : cur + note.body.slice(prev.length)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.body]);
 
@@ -183,7 +186,7 @@ export function EditorScreen({ navigation, route }: Props) {
   };
 
   const pickFile = async () => {
-    const res = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false });
+    const res = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: PICKER_COPY_TO_CACHE, multiple: false });
     if (res.canceled || !res.assets[0]) return;
     const a = res.assets[0];
     const att = await importAttachment(a.uri, a.name, a.mimeType, a.size);
@@ -342,7 +345,7 @@ export function EditorScreen({ navigation, route }: Props) {
         title={note.title || 'Nota'}
         entries={[
           { icon: editing ? 'eye' : 'edit-2', label: editing ? 'Ver formatado' : 'Editar texto', onPress: () => (editing ? setEditing(false) : startEditing(body.length)) },
-          { icon: 'copy', label: 'Copiar como markdown', onPress: () => clip.copy(`# ${title}\n\n${body}`) },
+          { icon: 'copy', label: 'Copiar como markdown', onPress: () => clip.copy(title.trim() ? `# ${title}\n\n${body}` : body) },
           { icon: 'paperclip', label: 'Anexar arquivo', onPress: attach },
           { icon: 'trash-2', label: 'Apagar nota', onPress: confirmDelete },
         ]}

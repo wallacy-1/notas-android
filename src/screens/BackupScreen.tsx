@@ -6,10 +6,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, fonts, radius } from '../theme';
 import { useNotes } from '../store/NotesContext';
-import { exportJson, exportMarkdownZip, exportPdf, listLocalBackups, parseBackup, pickBackupFile } from '../lib/backup';
+import type { File } from 'expo-file-system';
+import { exportJson, exportMarkdownZip, exportPdf, InvalidBackupError, listLocalBackups, parseBackup, pickBackupFile, restoreAttachments, type BackupPayload } from '../lib/backup';
 import { attachmentsTotalSize } from '../lib/files';
-import { formatBytes, formatNoteDate, formatTime } from '../lib/date';
+import { formatBytes, formatStamp } from '../lib/date';
 import { IconCircle, Kicker, PillButton, ScreenTitle } from '../components/ui';
+import { MenuSheet } from '../components/MenuSheet';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Backup'>;
 
@@ -32,6 +34,7 @@ export function BackupScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { notes, settings, updateSettings, backupNow, replaceAll } = useNotes();
   const [busy, setBusy] = useState<string | null>(null);
+  const [localBackups, setLocalBackups] = useState<File[] | null>(null);
 
   const size = useMemo(() => {
     const text = notes.reduce((acc, n) => acc + n.title.length + n.body.length, 0) * 2;
@@ -53,19 +56,29 @@ export function BackupScreen({ navigation }: Props) {
     }
   };
 
-  const confirmRestore = (count: number, apply: () => void) => {
-    Alert.alert('Restaurar backup', `As ${notes.length} notas atuais serão substituídas por ${count} do backup.`, [
+  const plural = (n: number) => (n === 1 ? '1 nota' : `${n} notas`);
+
+  const confirmRestore = (data: BackupPayload) => {
+    Alert.alert('Restaurar backup', `${notes.length === 1 ? 'A nota atual será substituída' : `As ${notes.length} notas atuais serão substituídas`} por ${plural(data.notes.length)} do backup.`, [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Restaurar', style: 'destructive', onPress: apply },
+      { text: 'Restaurar', style: 'destructive', onPress: () => replaceAll(restoreAttachments(data.notes), data.settings) },
     ]);
   };
 
-  const restoreFromFile = () =>
-    run('restore', async () => {
+  const restoreFromFile = async () => {
+    if (busy) return;
+    setBusy('restore');
+    try {
       const data = await pickBackupFile();
-      if (!data) return;
-      confirmRestore(data.notes.length, () => replaceAll(data.notes, data.settings));
-    });
+      if (data) confirmRestore(data);
+    } catch (e) {
+      if (e instanceof InvalidBackupError) return Alert.alert('Não deu', e.message);
+      console.warn('restore', e);
+      Alert.alert('Não deu', 'Não consegui ler esse arquivo.');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const restoreLocal = () => {
     const files = listLocalBackups();
@@ -73,24 +86,20 @@ export function BackupScreen({ navigation }: Props) {
       Alert.alert('Sem backups locais', 'Ainda não há backup automático neste aparelho.');
       return;
     }
-    Alert.alert(
-      'Backups locais',
-      'Escolha qual restaurar.',
-      [
-        ...files.slice(0, 3).map((f) => ({
-          text: `${formatNoteDate(f.modificationTime ?? 0)} · ${formatTime(f.modificationTime ?? 0)}`,
-          onPress: async () => {
-            const data = parseBackup(await f.text());
-            if (!data) return Alert.alert('Não deu', 'Backup corrompido.');
-            confirmRestore(data.notes.length, () => replaceAll(data.notes, data.settings));
-          },
-        })),
-        { text: 'Cancelar', style: 'cancel' as const },
-      ],
-    );
+    setLocalBackups(files);
   };
 
-  const lastLabel = settings.lastBackupAt ? `Último backup automático ${formatNoteDate(settings.lastBackupAt)}${formatNoteDate(settings.lastBackupAt).startsWith('hoje') ? '' : ` às ${formatTime(settings.lastBackupAt)}`}` : 'Nenhum backup ainda';
+  const restoreLocalFile = async (f: File) => {
+    try {
+      const data = parseBackup(await f.text());
+      if (!data) return Alert.alert('Não deu', 'Backup corrompido.');
+      confirmRestore(data);
+    } catch {
+      Alert.alert('Não deu', 'Não consegui ler esse backup.');
+    }
+  };
+
+  const lastLabel = settings.lastBackupAt ? `Último backup ${formatStamp(settings.lastBackupAt)}` : 'Nenhum backup ainda';
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -152,11 +161,23 @@ export function BackupScreen({ navigation }: Props) {
           label={busy ? 'Aguarde…' : 'Fazer backup agora'}
           disabled={!!busy}
           onPress={() => {
-            backupNow();
-            Alert.alert('Backup feito', 'Cópia guardada no aparelho. Para levar para outro lugar, exporte em JSON.');
+            if (backupNow()) Alert.alert('Backup feito', 'Cópia guardada no aparelho. Para levar para outro lugar, exporte em JSON.');
+            else Alert.alert('Não deu', 'Não consegui gravar o backup no aparelho.');
           }}
         />
       </View>
+
+      <MenuSheet
+        visible={localBackups !== null}
+        onClose={() => setLocalBackups(null)}
+        title="Backups locais"
+        entries={(localBackups ?? []).map((f) => ({
+          icon: 'clock' as const,
+          label: formatStamp(f.modificationTime ?? 0),
+          hint: f.name,
+          onPress: () => restoreLocalFile(f),
+        }))}
+      />
     </View>
   );
 }
